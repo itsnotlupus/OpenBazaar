@@ -16,7 +16,7 @@
     <script src="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
 
     <script src="site.js" ></script>
-    <script src="openpgp.min.js" ></script>
+    <script src="openpgp.js" ></script>
     <link rel="stylesheet" href="site.css">
 
 </head>
@@ -43,10 +43,10 @@
                         <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
                             <div class="container">
                                 <ul class="nav navbar-nav nav_container">
-                                    <li id='menu_li_page_generator' onclick="menu('page_generator')" class="active"><a href="#">Contract Generator</a></li>
-                                    <li id='menu_li_page_reader'><a onclick="menu('page_reader')" href="#">Contract Reader</a></li>
-                                    <li id='menu_li_page_options'><a onclick="menu('page_options')" href="#">Options</a></li>
-                                    <li id='menu_li_page_about'><a onclick="menu('page_about')" href="#">About / Structure</a></li>
+                                    <li id='menu_li_page_generator' onclick="app.ui.menu('page_generator')" class="active"><a href="#">Contract Generator</a></li>
+                                    <li id='menu_li_page_reader'><a onclick="app.ui.menu('page_reader')" href="#">Contract Reader</a></li>
+                                    <li id='menu_li_page_options'><a onclick="app.ui.menu('page_options')" href="#">Options</a></li>
+                                    <li id='menu_li_page_about'><a onclick="app.ui.menu('page_about')" href="#">About / Structure</a></li>
                                 </ul>
                             </div>
                         </nav>
@@ -87,7 +87,7 @@
                         </div>
                         <div class="col-sm-8">
                             <h3 class="text-center">Contract</h3>
-                            <p>Click <a href="#" onclick="gen_create_con()">here</a> to generate contract in format specified in the options menu</p>
+                            <p>Click <a href="#" onclick="app.contract.create()">here</a> to generate contract in format specified in the options menu</p>
                             <form  id="form_gen_fields" class="form-horizontal" role="form">
 
                             </form>
@@ -105,9 +105,14 @@
             <div class="row page_wrap" id="page_reader">
                 <div class="col-xs-12">
                     <h1>The Contract Reader</h1>
-                    <p>
-                        This bit is not yet build, but here you should be able to paste in JSON or XML contracts, and the javascript will check all the data to make sure it is valid
-                    </p>
+                    <h3 class="text-center">Paste a Contract here</h3>
+					<textarea rows='24' class="form-control"  name="raw_contract" id="raw_contract"></textarea>
+	                <div class="form-group">
+					<p><span onclick="app.contract.parse()"class="btn btn-info">Analyze contract</span></p>
+					</div>
+                    <pre style="display:none" id="contract_output">
+                        
+                    </pre>
                 </div>
             </div>
 
@@ -122,7 +127,7 @@
                         <div class="form-group">
                             <label for="option_contract_format" class="col-sm-6 control-label"> Contract Format</label>
                             <div class="col-sm-6">
-                                <select class="form-control" id='option_contract_format' onchange='set_option("option_contract_format")'>
+                                <select class="form-control" id='option_contract_format' onchange='app.options.save("option_contract_format")'>
                                     <option>Formatted</option><option>JSON</option><option>XML</option>
                                 </select>
                             </div>
@@ -186,11 +191,11 @@
                                 <li>Functions : 
                                     <ul>
                                         <li>$(function(); <i>Page completed loading function</i></li>
-                                        <li>menu(div); <i>For changing menu / pages</i></li>
-                                        <li>gen_add_el(elname); <i>Add's an element to the contract Generator form, Uses the element name from form_gen_elements</i></li>
-                                        <li>gen_del_el(); <i>Removes an element from the Generator form, uses javascript "this" to identify element</i></li>
-                                        <li>gen_create_con(); <i>Creates a contract from the form generation elements, Calls gen_check_con as part of the process</i></li>
-                                        <li>gen_check_con(); <i>Error checks the contract for potential issues</i></li>
+                                        <li>app.ui.menu(div); <i>For changing menu / pages</i></li>
+                                        <li>app.forms.add_element(elname); <i>Adds an element to the contract Generator form, Uses the element name from form_gen_elements</i></li>
+                                        <li>app.forms.del_element(); <i>Removes an element from the Generator form, uses javascript "this" to identify element</i></li>
+                                        <li>app.contract.create(); <i>Creates a contract from the form generation elements, Calls gen_check_con as part of the process</i></li>
+                                        <!--<li>gen_check_con(); <i>Error checks the contract for potential issues</i></li>-->
                                         <li>Array() form_gen_types <i>Holds an array of various types of form elements that can be referenced by form_gen_elements</i></li>
                                         <li>Array() form_gen_elements <i>Holds an array of options that can be added into each contract form, References form_gen_elements for input types</i></li>
                                     </ul>
@@ -228,10 +233,10 @@
                <div class="form-group">
                 <label for="field_id" class="col-sm-4 control-label">fieldname</label>
                 <div class="col-sm-7">
-                  <input type="fieldtype" onchange="gen_form_data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
+                  <input type="fieldtype" onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
                 </div>
                 <div class='col-sm-1'>
-                    <div class='btn btn-danger' onclick='gen_del_el(this)'>delete</div>
+                    <div class='btn btn-danger' onclick='app.forms.del_element(this)'>delete</div>
                 </div>
               </div>
             </div>
@@ -240,10 +245,10 @@
                <div class="form-group">
                 <label for="field_id" class="col-sm-4 control-label">fieldname</label>
                 <div class="col-sm-7 form_input_cont">
-                  <input type="fieldtype"  onchange="gen_form_data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
+                  <input type="fieldtype"  onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
                 </div>
                 <div class='col-sm-1'>
-                    <div class='btn btn-danger' onclick='gen_del_el(this)'>delete</div>
+                    <div class='btn btn-danger' onclick='app.forms.del_element(this)'>delete</div>
                 </div>
               </div>
             </div>
@@ -258,6 +263,7 @@
             </div>
 
             <div id="input_sign_and_encrypt_PGP">
+            	<form onsubmit="app.contract.sign();return false">
                 <h3>Private Key</h3>
                 <p>Please enter your passphrase for your private key.  This is not stored anywhere within this application.</p>
                 <div id='decrypt_alert'></div>
@@ -265,9 +271,9 @@
                     <input type='password' class='form-control' id='pgp_pass'>
                 </div>
                 
-                <p><span onclick="gen_sign_con()" class="btn btn-info">Generate contract and PGP sign</span></p>
+                <p><button class="btn btn-info">Generate contract and PGP sign</button></p>
                     
-               
+             	</form>
             </div>
 
             <div id="template_popup_pgp_load">
@@ -277,7 +283,7 @@
                 <p>We will provide options in the future for encryption, but at this stage it is not secure.  You can delete all local storage from the options menu.</p>
                 <div class="form-group">
                     <label for="pgp_key_pair" class="control-label">Please select your pgp key pair file</label>
-                    <input type='file' class="form-control" onchange="pgp_file_load()"  name="pgp_key_pair" id="pgp_key_pair">
+                    <input type='file' class="form-control" onchange="app.pgp_file_load()"  name="pgp_key_pair" id="pgp_key_pair">
                 </div>
                
             </div>

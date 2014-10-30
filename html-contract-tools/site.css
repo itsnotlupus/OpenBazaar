@@ -1,6 +1,8 @@
-
-
-
 .page_wrap{
     display:none;
+}
+
+#raw_contract {
+	font-family: monospace;
+	font-size: smaller;
 }
