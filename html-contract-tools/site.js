@@ -149,6 +149,14 @@ app.pgp_file_load = function () {
 
 // ======================== Contract Generation Functions ======================== 
 
+app.forms2 = (function () {
+    // TODO: alternate implementation. uses tv4 schemas to extract fields for contracts of a given type.
+
+    return {
+
+    };
+}());
+
 app.forms = (function () {
 
 	//Function adds a link for a form element to the left menu for adding to the contract
@@ -555,6 +563,7 @@ app.contract = (function() {
 		parse: function (){
 			var val = $("#raw_contract").val();
 			var armoredText;
+			var pgp_pub_key;
 			var output = [];
 			
 			try {
@@ -563,73 +572,53 @@ app.contract = (function() {
 				// not a great start. the armor is too damaged to sanely read it
 				output.push("INVALID or DAMAGED contract: "+e.message);
 			}
-		    var pgp_pub_key = openpgp.key.readArmored(JSON.parse(localStorage.PGP_keypair)[0]).keys[0];
-			
-		    var text = "";
-		    
-		    if (armoredText) {
-				openpgp.verifyClearSignedMessage(pgp_pub_key, armoredText).then(function(status) {
-					console.log("Verified response:", status);
-					if (status.signatures[0].valid) {
-						output.push("Contract signature is valid.");
-					} else {
-						output.push("Contract signature is INVALID.");
-					}
-			    	parse_payload(armoredText.text);
-				}).catch(function(e) {
-			    	// an error here just means we can't verify the signature.
-			    	// we can still inspect the plain-text and see if things make sense there.
-			    	output.push("Signature verification failed: "+e.message);
-			    	parse_payload(armoredText.text);
-				});
-		    } else {
+
+		    var payload = {};
+
+		    if (!armoredText) {
 		    	// remedial pseudo-parsing. The input is garbage, and opengpg won't even touch it, but we care, so we try.
 		    	var match = val.match(/-----BEGIN PGP SIGNED MESSAGE-----[\r\n](?:[a-zA-Z0-9]+:.*?[\r\n])*((?:.*[\r\n]){2,})-----BEGIN PGP SIGNATURE-----/);
 		    	output.push("Attempting to continue parsing in spite of damage:");
-		    	parse_payload(match && match[1] || "");
+		    	armoredText = new openpgp.cleartext.CleartextMessage(match && match[1] || "");
 		    }
-		    
-		    function parse_payload(text) {
-		    	var obj = {};
-		    	text = text.trim();
-		    	switch (text.charAt()) {
-		    	case '<':
-		    		output.push("XML payload detected");
-		    		try {
-		    			var doc = $.parseXML("<contract>"+text+"</contract>");
-		    			$("contract *", doc).each(function() {
-		    				var $node = $(this);
-		    				obj[$node.prop("tagName")] = $node.text();
-		    			});
-		    			
-		    		} catch (e) {
-		    			output.push("MALFORMED XML payload!");
-		    		}
-		    		break;
-		    	case '{':
-		    		output.push("JSON payload detected");
-		    		try {
-		    			obj = JSON.parse(text);
-		    		} catch (e) {
-		    			output.push("MALFORMED JSON payload!");
-		    		}
-		    		break;
-		    	default:
-		    		output.push("Formatted payload detected");
-		    		$.each(text.split('\r\n'),function(index,line) {
-		    			var fields = line.split(" : ");
-		    			obj[fields[0]] = fields[1];
-		    		});
-		    	}
-		    	output.push("parsed object: "+JSON.stringify(obj, null, 2));
 
-		    	// TODO:
-		    	// - loop through each known field.
-		    	//   - if required, assert that they are present in obj.
-		    	//   - if present, apply validation against value
-		    	// - loop through each obj key
-		    	//   - if not known field, warn about them.
-		    	
+            // parse payload now. we need a pgp key to verify the signature against
+            try {
+                payload = JSON.parse(armoredText.text.replace(/^- /gm,'').replace(/[\r\n]+/g,''));
+                pgp_pub_key = payload && payload.Seller && openpgp.key.readArmored(payload.Seller.seller_PGP).keys[0];
+            } catch (e) {
+                output.push("MALFORMED JSON payload!");
+            }
+            window.payload = payload; // XXX remove me
+
+            if (!pgp_pub_key) {
+                output.push("No valid Seller PGP key found. Cannot verify contract signature.");
+                validate_payload(payload);
+            } else {
+                openpgp.verifyClearSignedMessage(pgp_pub_key, armoredText).then(function(status) {
+                    if (status.signatures[0].valid) {
+                        output.push("Contract signature is valid.");
+                    } else {
+                        output.push("Contract signature is INVALID.");
+                    }
+                    validate_payload(payload);
+                }).catch(function(e) {
+                    // an error here just means we can't verify the signature.
+                    // we can still inspect the plain-text and see if things make sense there.
+                    output.push("Signature verification failed: "+e.message);
+                    validate_payload(payload);
+                });
+            }
+
+		    function validate_payload(payload) {
+		    	var isValid = tv4.validate(payload, tv4.getSchema("main")); // XXX don't hardcode things dammit.
+		    	if (isValid) {
+		    	    output.push("Contract payload appears to be valid.");
+		    	} else {
+		    	    output.push("Contract payload is INVALID.");
+		    	    output.push("Validation error in "+tv4.error.dataPath+": "+tv4.error.message);
+		    	}
+
 		    	dump_output();
 		    }
 		    

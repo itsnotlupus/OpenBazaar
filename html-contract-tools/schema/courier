@@ -1,0 +1,21 @@
+{
+    "title": "Courier",
+    "type": "object",
+    "properties": {
+        "courier_GUID": {
+            "type": "string"
+        },
+        "courier_BTC_uncompressed_pubkey": {
+            "type": "string"
+        },
+        "courier_PGP": {
+            "type": "string"
+        },
+        "courier_bitmessage": {
+            "type": "string"
+        },
+        "courier_commonaccord": {
+            "type": "object"
+        }
+    }
+}

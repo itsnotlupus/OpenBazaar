@@ -1,0 +1,21 @@
+{
+    "title": "Notary",
+    "type": "object",
+    "properties": {
+        "notary_GUID": {
+            "type": "string"
+        },
+        "notary_BTC_uncompressed_pubkey": {
+            "type": "string"
+        },
+        "notary_PGP": {
+            "type": "string"
+        },
+        "notary_bitmessage": {
+            "type": "string"
+        },
+        "notary_commonaccord": {
+            "type": "object"
+        }
+    }
+}

@@ -1,0 +1,36 @@
+{
+    "title": "Contract",
+    "type": "object",
+    "properties": {
+        "item_price": {
+            "type": "string"
+        },
+        "item_title": {
+            "type": "string"
+        },
+        "currency": {
+            "type": "string"
+        },
+        "item_desc": {
+            "type": "string"
+        },
+        "item_images": {
+            "type": "string"
+        },
+        "item_condition": {
+            "type": "string"
+        },
+        "item_quantity": {
+            "type": "number"
+        },
+        "item_keywords": {
+            "type": "array"
+        },
+        "item_delivery": {
+            "type": "object"
+        },
+        "item_commonaccord": {
+            "type": "object"
+        }
+    }
+}

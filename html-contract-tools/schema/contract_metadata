@@ -1,0 +1,27 @@
+{
+    "title": "Contract Metadata",
+    "type": "object",
+    "properties": {
+        "OBCv": {
+            "type": "string",
+            "default": "0.1-alpha"
+        },
+        "category": {
+            "type": "string",
+            "default": "physical_goods"
+        },
+        "contract_nonce": {
+            "type": "string",
+            "default": "01"
+        },
+        "subcategory": {
+            "type": "string",
+            "default": "fixed_price"
+        },
+        "expiration": {
+            "type": "string",
+            "default": "2015-01-01 00:00:00"
+        }
+    },
+    "required": [ "OBCv", "category", "contract_nonce", "subcategory", "expiration" ]
+}

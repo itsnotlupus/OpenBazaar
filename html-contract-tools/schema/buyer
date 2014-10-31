@@ -1,0 +1,21 @@
+{
+    "title": "Buyer",
+    "type": "object",
+    "properties": {
+        "buyer_GUID": {
+            "type": "string"
+        },
+        "buyer_BTC_uncompressed_pubkey": {
+            "type": "string"
+        },
+        "buyer_PGP": {
+            "type": "string"
+        },
+        "buyer_bitmessage": {
+            "type": "string"
+        },
+        "buyer_commonaccord": {
+            "type": "object"
+        }
+    }
+}

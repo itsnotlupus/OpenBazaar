@@ -1,0 +1,28 @@
+{
+    "title": "Main Contract",
+    "type": "object",
+    "properties": {
+        "Contract_Metadata": {
+            "$ref": "contract_metadata"
+        },
+        "Contract": {
+            "$ref": "contract"
+        },
+        "Seller": {
+            "$ref": "seller"
+        },
+        "Buyer": {
+            "$ref": "buyer"
+        },
+        "Notary": {
+            "$ref": "notary"
+        },
+        "Courier": {
+            "$ref": "courier"
+        },
+        "Arbiter": {
+            "$ref": "arbiter"
+        }
+    },
+    "required": [ "Contract_Metadata" ]
+}

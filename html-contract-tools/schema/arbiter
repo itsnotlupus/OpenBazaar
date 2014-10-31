@@ -1,0 +1,24 @@
+{
+    "title": "Arbiter",
+    "type": "object",
+    "properties": {
+        "arbiter_GUID": {
+            "type": "string"
+        },
+        "arbiter_BTC_uncompressed_pubkey": {
+            "type": "string"
+        },
+        "arbiter_PGP": {
+            "type": "string"
+        },
+        "arbiter_bitmessage": {
+            "type": "string"
+        },
+        "arbiter_commonaccord": {
+            "type": "object"
+        },
+        "arbiter_jurisdication_commondaccord": {
+            "type": "object"
+        }
+    }
+}
