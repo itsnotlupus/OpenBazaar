@@ -23,6 +23,8 @@
 
 </head>
 <body>
+<div id="notifier"></div>
+
 <div class="container">
     <div class="row">
         <div class="col-xs-10 col-xs-offset-1">
@@ -82,20 +84,24 @@
 
                     <div class="row">
                         <div class="col-sm-4">
-                            <ul id="form_gen_field_list" class="nav nav-pills nav-stacked">
-                                <li><h3 class="text-center">Available Fields</h3></li>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                                    New Contract <span class="caret"></span>
+                                </button>
+                                <ul id="new_contract_menu" class="dropdown-menu" role="menu">
 
+                                </ul>
+                            </div>
+                            <h3 class="">Signed Contracts</h3>
+                            <ul id="signed_contract_list" class="nav nav-pills nav-stacked">
+                                <li class="text-muted">nothing here</li>
+                            </ul>
+                            <h3 class="">Draft Contracts</h3>
+                            <ul id="draft_contract_list" class="nav nav-pills nav-stacked">
+                                <li class="text-muted">nothing here</li>
                             </ul>
                         </div>
-                        <div class="col-sm-8">
-                            <h3 class="text-center">Contract</h3>
-                            <p>Click <a href="#" onclick="app.contract.create()">here</a> to generate contract in format specified in the options menu</p>
-                            <form  id="form_gen_fields" class="form-horizontal" role="form">
-
-                            </form>
-                            <pre style="display:none" id="xml_contract">
-                                
-                            </pre>
+                        <div id="contract_editor" class="col-sm-8">
                         </div>
                     </div>
 
@@ -227,72 +233,98 @@
 
 
     <!-- The following section is for all elements to be added into various forms by javascript -->
-    <div class="row hidden">
-        <div class="col-xs-12">
-            Form Elements
-
-            <div id="form_input_template_text">
-               <div class="form-group">
-                <label for="field_id" class="col-sm-4 control-label">fieldname</label>
-                <div class="col-sm-7">
-                  <input type="fieldtype" onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
-                </div>
-                <div class='col-sm-1'>
-                    <div class='btn btn-danger' onclick='app.forms.del_element(this)'>delete</div>
-                </div>
-              </div>
-            </div>
-
-            <div id="form_input_template_datetime">
-               <div class="form-group">
-                <label for="field_id" class="col-sm-4 control-label">fieldname</label>
-                <div class="col-sm-7 form_input_cont">
-                  <input type="fieldtype"  onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
-                </div>
-                <div class='col-sm-1'>
-                    <div class='btn btn-danger' onclick='app.forms.del_element(this)'>delete</div>
-                </div>
-              </div>
-            </div>
-
-            <div id="form_input_template_textarea">
-               <div class="form-group">
-                <label for="field_id" class="col-sm-4 control-label">fieldname</label>
-                <div class="col-sm-8">
-                    <textarea rows='8' class="form-control"  name="gen_input_field[]" id="field_id"></textarea>
-                </div>
-              </div>
-            </div>
-
-            <div id="input_sign_and_encrypt_PGP">
-            	<form onsubmit="app.contract.sign();return false">
-                <h3>Private Key</h3>
-                <p>Please enter your passphrase for your private key.  This is not stored anywhere within this application.</p>
-                <div id='decrypt_alert'></div>
-                <div class='form-group'>
-                    <input type='password' class='form-control' id='pgp_pass'>
-                </div>
-                
-                <p><button class="btn btn-info">Generate contract and PGP sign</button></p>
-                    
-             	</form>
-            </div>
-
-            <div id="template_popup_pgp_load">
-                <h3>PGP Key Pair</h3>
-                <p>It appears that you have not set a PGP key pair to use, Please specify one before continuing.  Alternatively, you can use the application without setting this, though some features will not be available</p>
-                <div class="alert alert-danger alert-dismissable">IMPORTANT! : At the moment this stores your public and private key in clear text within your browser's HTML5 storage.</div>
-                <p>We will provide options in the future for encryption, but at this stage it is not secure.  You can delete all local storage from the options menu.</p>
-                <div class="form-group">
-                    <label for="pgp_key_pair" class="control-label">Please select your pgp key pair file</label>
-                    <input type='file' class="form-control" onchange="app.pgp_file_load()"  name="pgp_key_pair" id="pgp_key_pair">
-                </div>
-               
-            </div>
-
-
+    <script type="text/template" id="form_input_template_text">
+       <div data-type="{datatype}" data-prop="{prop}" class="form-group">
+        <label for="{field_id}" class="col-sm-4 control-label">{fieldname}</label>
+        <div class="col-sm-5">
+          <input type="{fieldtype}" onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="{field_id}">
         </div>
-    </div>
+      </div>
+    </script>
+
+    <script type="text/template" id="form_input_template_datetime">
+       <div class="form-group">
+        <label for="field_id" class="col-sm-4 control-label">fieldname</label>
+        <div class="col-sm-7 form_input_cont">
+          <input type="fieldtype"  onchange="app.forms.data_change(this);" class="form-control form_gen_input" name="gen_input_field[]" id="field_id">
+        </div>
+        <div class='col-sm-1'>
+            <div class='btn btn-danger' onclick='app.forms.del_element(this)'>delete</div>
+        </div>
+      </div>
+    </script>
+
+    <script type="text/template" id="form_input_template_textarea">
+       <div class="form-group">
+        <label for="field_id" class="col-sm-4 control-label">fieldname</label>
+        <div class="col-sm-8">
+            <textarea rows='8' class="form-control"  name="gen_input_field[]" id="field_id"></textarea>
+        </div>
+      </div>
+    </script>
+
+    <script type="text/template" id="input_sign_and_encrypt_PGP">
+        <form onsubmit="app.contract.sign();return false">
+        <h3>Private Key</h3>
+        <p>Please enter your passphrase for your private key.  This is not stored anywhere within this application.</p>
+        <div id='decrypt_alert'></div>
+        <div class='form-group'>
+            <input type='password' class='form-control' id='pgp_pass'>
+        </div>
+
+        <p><button class="btn btn-info">Generate contract and PGP sign</button></p>
+
+        </form>
+    </script>
+
+    <script type="text/template" id="template_popup_pgp_load">
+        <h3>PGP Key Pair</h3>
+        <p>It appears that you have not set a PGP key pair to use, Please specify one before continuing.  Alternatively, you can use the application without setting this, though some features will not be available</p>
+        <div class="alert alert-danger alert-dismissable">IMPORTANT! : At the moment this stores your public and private key in clear text within your browser's HTML5 storage.</div>
+        <p>We will provide options in the future for encryption, but at this stage it is not secure.  You can delete all local storage from the options menu.</p>
+        <div class="form-group">
+            <label for="pgp_key_pair" class="control-label">Please select your pgp key pair file</label>
+            <input type='file' class="form-control" onchange="app.pgp_file_load()"  name="pgp_key_pair" id="pgp_key_pair">
+        </div>
+
+    </script>
+
+    <script type="text/template" id="template_contract_editor">
+        <ul id="editorTab" class="nav nav-tabs" role="tablist">
+            <li role=""presentation">
+                <a href="#editor" id="editor-tab" data-toggle="tab">Editor</a>
+            </li>
+            <li role="presentation">
+                <a href="#contract" id="contract-tab" data-toggle="tab">Signed Contract</a>
+            </li>
+        </ul>
+        <div id="editorTabContent" class="tab-content">
+            <div role="tabpanel" class="tab-pane fade" id="editor" aria-labelledby="editor-tab">
+                <!--<h3 class="text-center">Contract</h3>-->
+                <form  id="form_gen_fields" class="form-horizontal" role="form">
+
+                </form>
+                <div class="btn-group">
+                    <button type="button" onclick="app.forms2.validate_contract()" class="btn btn-default">Validate</button>
+                    <button type="button" onclick="app.forms2.save_draft()" class="btn btn-default">Save as draft</button>
+                    <button type="button" onclick="app.forms2.sign_contract()" class="btn btn-default">Sign</button>
+                </div>
+            </div>
+            <div role="tabpanel" class="tab-pane fade" id="contract" aria-labelledby="contract-tab">
+                <pre id="xml_contract">
+Sign a contract from the editor tab to see it here.
+                </pre>
+            </div>
+        </div>
+
+    </script>
+
+    <script type="text/template" id="alert">
+        <div class="alert alert-{type} alert-dismissible fade in" role="alert">
+            <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">×</span><span class="sr-only">Close</span></button>
+            {message}
+        </div>
+    </script>
 
 </div>
 </body>

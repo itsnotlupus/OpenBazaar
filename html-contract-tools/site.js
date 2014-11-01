@@ -1,4 +1,4 @@
-// ======================== Data ======================== 
+// ======================== Data ========================
 // 
 // 
 
@@ -39,7 +39,7 @@ var app = (function() {
 	    //By default, show the script generator
 	    $("#page_generator").fadeIn({duration:500});
 	    
-	    app.forms.create_field_list();
+	    app.forms2.create_type_list();
 	    
 	    //If no keypair exist, prompt for one at startup,
 	    if(localStorage.PGP_keypair === undefined) {
@@ -147,13 +147,236 @@ app.pgp_file_load = function () {
      r.readAsText(file); 
 };
 
+// stash those in a better namespace, maybe:
+app.template = function(id, params) {
+    var tmpl = $("#"+id).text();
+    return tmpl.replace(/\{([^{}]*)\}/g,
+        function (a, b) {
+            var r = params[b];
+            switch (typeof r) {
+            case 'string': case 'number':
+                return r;
+            case 'function':
+                return r();
+            default:
+                return a;
+            }
+        }
+    );
+};
+app.alert = function(type, message) {
+    var msg = $(app.template("alert", {type:type, message:message}));
+    $("#notifier").append(msg);
+    setTimeout(function() {
+        msg.alert('close');
+    }, 5000);
+}
+
 // ======================== Contract Generation Functions ======================== 
 
 app.forms2 = (function () {
     // TODO: alternate implementation. uses tv4 schemas to extract fields for contracts of a given type.
+    var schemas = tv4.getSchemaMap();
+    var contract_types = Object.keys(schemas).filter(function(name){
+        return schemas[name].contract;
+    });
+
+	//Function adds a link for a form element to the left menu for adding to the contract
+	function add_link_line(name, schema){
+	    $("#new_contract_menu").append("<li><a href='#' onclick='app.forms2.start_contract(\""+  name  +"\")'>" + schema.title + "</a></li>");
+	}
+
+	function add_draft_line(type, payload) {
+	    $("#draft_contract_list").append("<li><a href='#'>"+type+"</a></li>");
+	    $("#draft_contract_list > li > a:last").click(function() {
+	        console.log("load draft somehow:",type,payload);
+	    });
+	}
+
+	function gen_object(property, obj, path, canClose) {
+	    var holder = $("<div data-type='object' data-prop='"+property+"' class='panel panel-default' >");
+	    var heading = $("<div class='panel-heading'>");
+
+	    holder.append(heading);
+	    if (canClose) {
+	        heading.append('<div class="btn-group pull-right"><span class="btn btn-danger">delete</span></div>');
+	        $(".btn-danger", heading).click(function() {
+	            // trash shelf.
+	            holder.remove();
+	            // show "add" button again
+                var btn = $("#add_"+path.replace(/\./g,'-'));
+                btn.show();
+	        });
+	    } else {
+	        heading.append('<div class="btn-group pull-right"><span class="btn btn-default disabled">required</span></div>');
+	    }
+	    var label = obj.title||obj.description||path.split(".").reverse()[0];
+	    if (label) {
+	        heading.append($("<h5>").text(label));
+	    }
+	    if (obj.title) {
+	        holder.append();
+	    }
+	    var body = $("<div class='panel-body'>");
+	    var footer = $("<div class='panel-footer'>");
+	    var footerUsed = false;
+        obj.properties && Object.keys(obj.properties).forEach(function(property) {
+
+            var definition = obj.properties[property];
+            var prop_path = path+"."+property;
+
+            function renderProperty(canClose) {
+                if (definition.$ref) {
+                    definition = schemas[definition.$ref];
+                }
+                switch (definition.type) {
+                    case "object":
+                        body.append(gen_object(property, definition, prop_path, canClose));
+                        break;
+                    case "string":
+                    case "number":
+                    case "array": // XXX Bad. but use a comma-separated string for now.
+                        body.append(gen_string(property, definition, prop_path, canClose));
+                        break;
+                    default:
+                        console.error("Unknown type:", definition);
+                }
+            }
+
+            if (obj.required && obj.required.indexOf(property)>-1) {
+                renderProperty();
+            } else {
+                // optional..
+                var label = definition.title || definition.description || property;
+                var id = "add_"+prop_path.replace(/\./g,"-");
+                var el = $("<span id='"+id+"' class='btn btn-default'>Add "+label+"</span>");
+                el.click(function() {
+                    el.hide();
+                    renderProperty(true);
+                });
+                footer.append(el);
+                footerUsed = true;
+            }
+        });
+        holder.append(body);
+        if (footerUsed) holder.append(footer);
+	    return holder;
+	}
+
+	function gen_string(property, obj, path, canClose) {
+        //Get the HTMl and prepare to add
+        var label = obj.title || obj.description || path.split(".").reverse()[0];
+
+        var inputHtml = app.template("form_input_template_text", {
+            prop: property,
+            field_id: path,
+            fieldname: label,
+            fieldtype: "text",
+            datatype: obj.type
+        });
+
+        var el = $(inputHtml);
+        if (canClose) {
+            el.append("<div class='col-sm-3'><div class='btn btn-danger' >delete</div></div>");
+            $(".btn-danger", el).click(function() {
+	            // trash shelf.
+	            el.remove();
+	            // show "add" button again
+                var btn = $("#add_"+path.replace(/\./g,'-'));
+                btn.show();
+            });
+        } else {
+	        el.append('<div class="col-sm-3"><div class="btn btn-default disabled">required</div></div>');
+        }
+        if (obj.default) {
+            $("input", el).val(obj.default);
+        }
+        return el;
+	}
+
+    // crawl the DOM, returns JSON.
+	function produce_json(parent, el) {
+	    var type = el.attr("data-type");
+	    var prop = el.attr("data-prop");
+	    switch (type) {
+	        case "object":
+                var obj = {};
+                parent[prop] = obj;
+                $("> .panel-body > [data-type]", el).each(function() {
+                    produce_json(obj, $(this));
+                });
+                break;
+	        case "string":
+                var val = $("input", el).val();
+                parent[prop] = val;
+                break;
+	        default:
+	            console.error("Unhandled field type:", type, el[0]);
+	    }
+	    return parent;
+	}
 
     return {
+        create_type_list: function() {
+            // populate "new contract" drop-down
+            $("#new_contract_menu").html("");
+            contract_types.forEach(function(type){
+		        //Add the link using this element details, and getting the type
+		        add_link_line(type, schemas[type]);
+		    });
+		    // populate signed contracts
 
+		    // populate draft contracts
+		    var drafts = app.store.get_drafts();
+            if (drafts.length) {
+		        $("#draft_contract_list").html("");
+		        drafts.forEach(function(obj) {
+		            add_draft_line(obj.type, obj.payload);
+		        });
+            }
+
+        },
+        start_contract: function(type) {
+            // clean out any previous contract fields
+            $("#contract_editor").html($("#template_contract_editor").html());
+            // start generating elements
+            // XXX This is not going to support everything that json schema can handle. maybe later.
+            var schema = schemas[type];
+            $("#form_gen_fields").append(gen_object(type, schema, "contract"));
+            $('#editorTab a:first').tab('show');
+
+        },
+        validate_contract: function() {
+            var obj = produce_json({}, $("#form_gen_fields > div"));
+            var contract_type = Object.keys(obj)[0];
+            var payload = obj[contract_type];
+            var isValid = tv4.validate(payload, tv4.getSchema(contract_type));
+            if (isValid) {
+                app.alert("success", "<strong>Nice!</strong> This contract is valid.");
+            } else {
+                app.alert("danger", "<strong>Error!</strong> in "+tv4.error.dataPath+": "+tv4.error.message);
+            }
+        },
+        save_draft: function() {
+            var obj = produce_json({}, $("#form_gen_fields > div"));
+            var contract_type = Object.keys(obj)[0];
+            var payload = obj[contract_type];
+            var isValid = tv4.validate(payload, tv4.getSchema(contract_type));
+            // do we allow to save an invalid contract? maybe.
+            app.store.save_draft(contract_type, payload);
+            app.alert("success", "This contract has been <strong>saved as a draft.</strong>");
+        },
+        sign_contract: function() {
+            var obj = produce_json({}, $("#form_gen_fields > div"));
+            var contract_type = Object.keys(obj)[0];
+            var payload = obj[contract_type];
+            var isValid = tv4.validate(payload, tv4.getSchema(contract_type));
+            if (!isValid) {
+                app.alert("danger", "<strong>Error!</strong> in "+tv4.error.dataPath+": "+tv4.error.message);
+                return;
+            }
+            app.contract.create(contract_type, payload);
+        }
     };
 }());
 
@@ -181,7 +404,7 @@ app.forms = (function () {
 	    //Make sure the object exists in the form
 	    var dat = $(inputObj).html();
 	    if(dat===undefined) {
-	       return "The " + el.name + " field does not exist on the form, can not validate non-existant data";
+	       return "The " + el.name + " field does not exist on the form, can not validate non-existent data";
 	    }
 	   
 	    //Get the type for the field
@@ -492,36 +715,16 @@ app.contract = (function() {
 	}
 	
 	return {
+
 		//Function to generate the contract
-		create: function() {
-		    //initialize an variable to hold an object array of values
-		    var contract_values = {};
-		    $("#form_gen_fields").find('input[name="gen_input_field[]"]').each(function(){
-		        var id = $(this).attr('id');
-		        contract_values[id] = $(this).val();
-		    });
-		    
-		    //Check the contract values and get result to variable.
-		    var checks = gen_check_con();
-		    
-		    //If the checks did not return true, 
-		    if(checks!==true && checks !==undefined) {
-		        $("#xml_contract").html(checks).show();
-		    }
-		    
-		    //If all values are correct ,then show the sign and encrypt modal
-		    else {
-		        //get parsed data
-		        var parsedValues = gen_parse_values(contract_values);
-		        
-		        $("#xml_contract").text(parsedValues).show();
-		        $("#popup_content").html($("#input_sign_and_encrypt_PGP").html());
-		        $("#popup_modal").modal('show').one("shown.bs.modal", function() {
-		        	$("#pgp_pass").focus();
-		        });
-		        
-		    }
-		        
+		create: function(type, payload) {
+		    // in this incarnation, this assumes validation happened elsewhere, and we're good to go.
+		    $("#xml_contract").text(JSON.stringify(payload)).show()
+		    // XXX We should only show this if we actually need a passphrase.
+            $("#popup_content").html($("#input_sign_and_encrypt_PGP").html());
+            $("#popup_modal").modal('show').one("shown.bs.modal", function() {
+                $("#pgp_pass").focus();
+            });
 		},
 		sign: function (){
 		    //First, if the keypair is not set
@@ -538,23 +741,27 @@ app.contract = (function() {
 		    
 		    //Attempt to decrypt the public key
 		    if(pgp_priv_key.decrypt($("#pgp_pass").val())){
-		       
-		        
+
+		       var payload = JSON.parse($("#xml_contract").text());
+
+		       payload.Seller = payload.Seller || {};
+		       payload.Seller.seller_PGP = JSON.parse(localStorage.PGP_keypair)[0];
+
 		        //Sign the contract with the private key,
-		        openpgp.signClearMessage([pgp_priv_key], $("#xml_contract").text()).then(function(pgpSignedContract){
+		        openpgp.signClearMessage([pgp_priv_key], JSON.stringify(payload)).then(function(pgpSignedContract){
 		            //write the contract to the contract location
 		            $("#xml_contract").text(pgpSignedContract);
 
-		            //Set the modal back to blank, and remove all input fields
+		            //Set the modal back to blank
 		            $("#popup_content").html("");
-		            $("#form_gen_fields").html("");
-		        	
+
 		            $("#popup_modal").modal('hide');
-		        });
+                    $('#editorTab a#contract-tab').tab('show');
+                });
 
 
 		    }
-		    //If the key decryption failes
+		    //If the key decryption fails
 		    else{
 		       //notify the user
 		       $("#decrypt_alert").html('<div class="alert alert-danger alert-dismissable">Failed to decrypt key, do you have the correct passphrase?</div>');
@@ -629,6 +836,27 @@ app.contract = (function() {
 		  
 
 	};
+}());
+
+app.store = (function() {
+
+    return {
+        save_draft: function(type, payload) {
+            var drafts = app.store.get_drafts();
+            drafts.push({type: type, payload: payload});
+            localStorage.setItem("drafts", JSON.stringify(drafts));
+            // update the list in the DOM
+    	    app.forms2.create_type_list();
+        },
+        get_drafts: function() {
+            var drafts = [];
+            try {
+                drafts = JSON.parse(localStorage.getItem("drafts")) || [];
+            } catch (e) { /* nobody cares */ }
+            return drafts;
+        }
+    }
+
 }());
 
 
