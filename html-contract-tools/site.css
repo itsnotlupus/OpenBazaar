@@ -15,3 +15,6 @@
     margin: .5em;
     width: 50%;
 }
+.alert .align-w-btn {
+    line-height: 30px;
+}
