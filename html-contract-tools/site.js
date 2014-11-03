@@ -1,30 +1,23 @@
-// ======================== Data ========================
-// 
-// 
+// ======================== Formatters ========================
 
+function regexFormatter(regex, msg) {
+    return function (data, schema) {
+        if (typeof data === 'string' && regex.test(data)) {
+            return null;
+        }
+        return msg;
+    };
+}
 
-
-//Variable that contains possible form types, etc
-var form_gen_types = [
-    {name:'text',type:"text",class:""},
-    {name:'nym', type:"text", class:"has-success", min_len:10 ,max_len:80 , regex_validation_rule:"", regex_validation_msg:"Failed to validate data, please re-enter"},
-    {name:'btc_addr', type:"text", class:"has-success", min_len:26 ,max_len:33 , regex_validation_rule:"^[13][a-zA-Z0-9]{26,33}$", regex_validation_msg:"~field~ must be a valid bitcoin address."},
-    {name:'currency',type:"text",class:"",regex_validation_rule:'^[0-9]+.?[0-9]+$',regex_validation_msg:"~field~ must be a valid currency value"},
-    {name:'checkbox',type:"checkbox",class:""},
-    {name:'textarea',type:"textarea",class:""},
-    {name:'date',type:"datetime",class:"",regex_validation_rule:'^20[1-6][0-9]-[0-1]?[0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]$',regex_validation_msg:"~field~ must be a valid Date Time (eg 2015-11-23 12:33:11)"}    
-];
-
-
-//Variable that contains possible form types, etc
-var form_gen_elements = {
-    nym:{dataID:'nym_id',name:"Nym ID", type:'nym',required:true,single_field:true,default_value:"testnym"},
-    btc_addr:{dataID:'btc_addr',name:"Your Bitcoin address",type:"btc_addr",required:true,single_field:true,default_value:"1P1GFYLWUhPzFazFKhp2ZHAzaBBKD6AKX1"},
-    asset_name:{dataID:'asset_name',name:"Name of item to sell", type:"text",min_len:5,required:true,single_field:true,default_value:"1 french cat"},
-    asset_price:{dataID:'asset_price',name:"Price (in BTC) of item to sell", type:"currency",required:true,single_field:true,default_value:"1.0"},
-    contract_exp:{dataID:'contract_exp',name:"Offer expiry date", type:"date",required:true,single_field:true,default_value:"2014-07-22 12:00:00"}
+var formats = {
+    "date-time": regexFormatter(/^20[1-6][0-9]-[0-1]?[0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]$/, "must be a valid Date Time (eg 2015-11-23 12:33:11)"),
+    "date": regexFormatter(/^20[1-6][0-9]-[0-1]?[0-9]-[0-3][0-9]$/, "must be a valid Date (eg 2015-11-23)"),
+    "bitcoin-address": regexFormatter(/^[13][a-zA-Z0-9]{26,33}$/, "must be a valid bitcoin address"),
+    "hex": regexFormatter(/^[0-9a-fA-F]+$/i, "must be string of hexadecimal digits"),
+    "price": regexFormatter(/^[0-9]+.?[0-9]+$/, "must be a valid currency value")
 };
-    
+
+tv4.addFormat(formats);
 
 // ======================== Main Document Functions ========================
 
@@ -42,8 +35,14 @@ var app = (function() {
 		
 	    //By default, show the script generator
 	    $("#page_generator").fadeIn({duration:500});
-	    
-	    app.forms2.create_type_list();
+
+        // enable tooltip on any present and future elements
+        $('body').tooltip({
+            placement: "right",
+            selector: "[data-toggle='tooltip']"
+        });
+
+	    app.forms.create_type_list();
 	    
 	    //If no keypair exist, generate one. Hardcore people can upload their own keypair in the settings pane.
 	    if(localStorage.PGP_keypair === undefined) {
@@ -201,8 +200,7 @@ app.alert = function(type, message, holder) {
 
 // ======================== Contract Generation Functions ======================== 
 
-app.forms2 = (function () {
-    // TODO: alternate implementation. uses tv4 schemas to extract fields for contracts of a given type.
+app.forms = (function () {
     var schemas = tv4.getSchemaMap();
     var contract_types = Object.keys(schemas).filter(function(name){
         return schemas[name].contract;
@@ -216,7 +214,10 @@ app.forms2 = (function () {
 
 	//Function adds a link for a form element to the left menu for adding to the contract
 	function add_link_line(name, schema){
-	    $("#new_contract_menu").append("<li><a href='#' onclick='app.forms2.start_contract(\""+  name  +"\")'>" + schema.title + "</a></li>");
+	    $("#new_contract_menu").append("<li><a href='#'></a></li>");
+	    $("#new_contract_menu > li > a:last").text(schema.title).click(function() {
+	        app.forms.start_contract(name);
+	    });
 	}
 
 	function add_contract_line(name, contract) {
@@ -245,6 +246,9 @@ app.forms2 = (function () {
 
     	    // do pretty much exactly what load_draft_contract does.
     	    load_contract(name, type, payload, false);
+
+            // populated signed contract tab.
+    	    $("#xml_contract").text(contract);
         });
 	}
 
@@ -258,7 +262,7 @@ app.forms2 = (function () {
 
 	function load_contract(name, type, payload, isDraft) {
 	    // setup editor for "type"
-	    app.forms2.start_contract(type);
+	    app.forms.start_contract(type);
 	    // fill each field from payload, clicking "add" buttons as needed.
 	    fill_values("contract", payload, $("#form_gen_fields > .panel"));
 	    // show info bar above editor with "delete" button, which goes away on first edit/add/delete
@@ -317,7 +321,7 @@ app.forms2 = (function () {
 	    }
 	    var label = obj.title||obj.description||path.split(".").reverse()[0];
 	    if (label) {
-	        heading.append($("<h5>").text(label));
+	        heading.append($("<h5 data-toggle='tooltip'>").text(label).attr("title", obj.description||""));
 	    }
 	    if (obj.title) {
 	        holder.append();
@@ -330,6 +334,11 @@ app.forms2 = (function () {
 
                 var definition = obj.properties[property];
                 var prop_path = path+"."+property;
+
+                if (definition.hidden) {
+                    body.append(gen_hidden(property, definition, prop_path));
+                    return; // just skip those from rendering altogether
+                }
 
                 function renderProperty(canClose) {
                     if (definition.$ref) {
@@ -376,14 +385,16 @@ app.forms2 = (function () {
 
 	function gen_string(property, obj, path, canClose) {
         //Get the HTMl and prepare to add
-        var label = obj.title || obj.description || path.split(".").reverse()[0];
+        var label = obj.title || path.split(".").reverse()[0];
 
+        // XXX template fields are not being properly escaped
         var inputHtml = app.template("form_input_template_text", {
             prop: property,
             field_id: path,
             fieldname: label,
             fieldtype: "text",
-            datatype: obj.type
+            datatype: obj.type,
+            tooltip: obj.description || ""
         });
 
         var el = $(inputHtml);
@@ -406,6 +417,23 @@ app.forms2 = (function () {
         return el;
 	}
 
+	function gen_hidden(property, obj, path) {
+        var label = obj.title || path.split(".").reverse()[0];
+	    var el = $(app.template("form_input_template_hidden", {
+	        prop: property,
+	        field_id: path,
+	        fieldname: label,
+	        fieldtype: "hidden",
+	        datatype: obj.type,
+	        tooltip: obj.description || ""
+	    }));
+        if (obj.default) {
+            $("input", el).val(obj.default);
+            $("pre", el).text(obj.default);
+        }
+	    return el;
+	}
+
     // crawl the DOM, returns JSON.
 	function produce_json(parent, el) {
 	    var type = el.attr("data-type");
@@ -426,6 +454,29 @@ app.forms2 = (function () {
 	            console.error("Unhandled field type:", type, el[0]);
 	    }
 	    return parent;
+	}
+
+	function resolveErrorField(schema) {
+	    var obj = schema;
+	    var path = tv4.error.schemaPath.split("/");
+	    path.shift(); // leading "/"
+	    path.pop(); // trailing field within a property definition. hopefully.
+	    while (path.length) {
+	        obj = obj[path.shift()];
+	        if (obj.$ref) { obj = tv4.getSchema(obj.$ref); }
+	    }
+	    return obj;
+	}
+
+	function crawlSchema(schema, path) {
+	    var obj = schema;
+	    path = path.split(".");
+	    path.shift();
+	    while (path.length) {
+	        obj = obj.properties[path.shift()];
+	        if (obj.$ref) { obj = tv4.getSchema(obj.$ref); }
+	    }
+	    return obj;
 	}
 
     return {
@@ -467,6 +518,7 @@ app.forms2 = (function () {
             $("#contract_editor").html($("#template_contract_editor").html());
             // start generating elements
             // XXX This is not going to support everything that json schema can handle. maybe later.
+            current_contract_type = type;
             var schema = schemas[type];
             $("#form_gen_fields").append(gen_object(type, schema, "contract"));
             $('#editorTab a:first').tab('show');
@@ -480,7 +532,19 @@ app.forms2 = (function () {
             if (isValid) {
                 app.alert("success", "<strong>Nice!</strong> This contract is valid.");
             } else {
-                app.alert("danger", "<strong>Error!</strong> in "+tv4.error.dataPath+": "+tv4.error.message);
+                var definition = resolveErrorField(tv4.getSchema(contract_type));
+                // CONSIDER: we could generate a friendlier-looking path than error.dataPath.
+                var msg = "<strong>Error ("+tv4.error.code+")</strong> in "+tv4.error.dataPath+": "+tv4.error.message;
+                switch (tv4.error.code) {
+                    case tv4.errorCodes.STRING_PATTERN:
+                        if (definition.validation_message) {
+                            msg = definition.validation_message.replace("{field}", definition.title);
+                        }
+                        break;
+                    default:
+                        //
+                }
+                app.alert("danger", msg);
             }
             $("#editor-notification .alert").alert("close");
         },
@@ -543,252 +607,32 @@ app.forms2 = (function () {
             $("#editor-notification .alert").alert("close");
         },
         data_change: function(elt) {
-            console.log("NOTE: Inspect ", elt," for changes..");
+            var holder = elt.parent().parent();
+            // clean outdated validation UI bits
+            holder.removeClass("has-error has-warning has-success");
+		    holder.children(".help-block").remove();
+            // remove editor notification if it's there
             $("#editor-notification .alert").alert("close");
+
+            // produce a tiny bit of json for this
+            var payload = produce_json({}, holder);
+            // drag it out of containing object to validate
+            payload = payload[Object.keys(payload)[0]];
+
+            // let's validate just that bit from the schema, because why not.
+            var definition = crawlSchema(tv4.getSchema(current_contract_type), elt[0].id);
+            console.log("Payload is ", payload);
+            console.log("found definition: ", definition);
+            var isValid = tv4.validate(payload, definition);
+            if (isValid) {
+                holder.addClass("has-success");
+            } else {
+                //append a help block
+                holder.append('<span class="help-block">'+tv4.error.message+'</span>');
+                holder.addClass("has-error");
+            }
         }
     };
-}());
-
-app.forms = (function () {
-
-	//Function adds a link for a form element to the left menu for adding to the contract
-	function add_link_line(finfo){
-	    $("#form_gen_field_list").append("<li id='form_gen_add_" + finfo.dataID + "'><a href='#' onclick='app.forms.add_element(\""+  finfo.dataID  +"\")'>" + finfo.name + "</a></li>");
-	}
-
-	//Function checks all data validation rules in for the named element, 
-	//Returns true if validation passed,
-	//Returns array of errors if validation failed 
-	//Returns false if elname not found in the array
-	function data_validation(inputObj){
-	    //Get the element details
-	    var el = app.forms.get_element($(inputObj).attr("id"));
-	    var re;
-	    
-	    //if el is false, return false
-	    if(el===false || el===undefined) {
-	        return false;
-	    }
-	    
-	    //Make sure the object exists in the form
-	    var dat = $(inputObj).html();
-	    if(dat===undefined) {
-	       return "The " + el.name + " field does not exist on the form, can not validate non-existent data";
-	    }
-	   
-	    //Get the type for the field
-	    var type = app.forms.get_type(el.type);
-	    
-	    //if not type, ,return false
-	    if(type===false || type===undefined) {
-	        return false;
-	    }
-	    
-	    //Get the value to a var
-	    var val = $(inputObj).val();
-	    
-	    //prepare a var for storing any error messages
-	    var errors = [];
-	    
-	    //min_len:26
-	    //max_len:33
-	    //regex_validation_rule:"^[13][a-zA-Z0-9]{26,33}$"
-	    //regex_validation_msg:"~field~ must be a valid bitcoin address."}
-	   
-	    //if min lenght is set on the element, check it
-	    if(el.min_len !==undefined){
-	        
-	        //Check the value
-	        if(val < el.min_len) {
-	            errors.push(el.name + " must be at least " + el.min_len + " characters long \r\n");
-	        }
-	    }
-	    //Else check if the type has a minimum length
-	    else if(type.min_len !==undefined){
-	        //Check the value
-	        if(val < type.min_len) {
-	            errors.push(el.name + " must be at least " + type.min_len + " characters long \r\n");
-	        }
-	    }
-	   
-	    //if element max length is set, 
-	    if(el.max_len !==undefined){
-	        //Check the value
-	        if(val > el.max_len) {
-	            errors.push(el.name + " must be less than or equal to " + el.min_len + " characters long \r\n");
-	        }
-	    }
-	   
-	    //else if the type max length is set, 
-	    else if(type.max_len !==undefined){
-	        //Check the value
-	        if(val > type.max_len) {
-	            errors.push(el.name + " must be less than or equal to " + type.min_len + " characters long \r\n");
-	        }
-	    }
-	   
-	    //If element regex is set
-	    if(el.regex_validation_rule !==undefined){
-	        re = new RegExp(el.regex_validation_rule,'i');
-	        
-	        if(re.test(val)===false) {
-	            errors.push(el.regex_validation_msg.replace("~field~",el.name)+". Invalid match " + val + "\r\n");
-	        }
-	    }
-	    //else if the type regex is set
-	    if(type.regex_validation_rule !==undefined){
-	        re = new RegExp(type.regex_validation_rule,'i');
-	        
-	        if(re.test(val)===false) {
-	            errors.push(type.regex_validation_msg.replace("~field~",el.name)+"  Invalid match " + val + "\r\n");
-	        }
-	    }
-	    
-	    if(errors.length < 1) {
-	        return true;
-	    }
-	    return errors;
-	}
-	return {
-		//Function creates list of possible form elements for the generate contracts page
-		create_field_list: function () {
-		    $.each(form_gen_elements,function(c,o){
-		        //Add the link using this element details, and getting the type
-		        add_link_line(o);
-		    });
-		},
-		//Function returns form gen type data
-		get_type: function (type) {
-		    var gen_type_obj ;
-		    $.each(form_gen_types,function(co,t){
-		        if(type===t.name) {
-		            gen_type_obj = form_gen_types[co];
-		        }
-		    });
-		    
-		    if(gen_type_obj!==undefined) {
-		        return gen_type_obj;
-		    }
-		    else {
-		        console.log("Could not find element type" + type);
-		    }
-		},
-		//Function returns form gen type data
-		get_element: function (elementname) {
-		    var gen_el_obj;
-		    
-		    //For each element in the array
-		    $.each(form_gen_elements,function(c,e){
-		        //If the element name === the element type, set the var as this element
-		        if(elementname===e.dataID) {
-		            gen_el_obj = form_gen_elements[c]; // XXX = e?
-		        }
-		        
-		    });
-		    
-		    if(gen_el_obj!==undefined) {
-		        return gen_el_obj;
-		    }
-		    else {
-		        console.log("Could not find element " + elementname);
-		    }
-		},
-		//Adds a clicked element from the left menu to the contract
-		add_element: function (elname) {
-		    //Get the element from the array, and the type
-		    var element = app.forms.get_element(elname);
-		    var type = app.forms.get_type(element.type);
-		    
-		    //Check if this element only allows a single field (on instance of this element)
-		    if(element.single_field===true){
-		        //If the element already exists (eg the HTML is not undefined)
-		        if($("#"+element.dataID).html() !== undefined){
-		            //Show an alert, and return nothing to exit the function
-		            alert("This field is not allowed to be added twice to a contract");
-		            return;
-		        }
-		    }
-		    
-		    
-		    //Get the HTMl and prepare to add
-		    var inputHtml = $("#form_input_template_"+type.type).html();
-		    
-		    //If the HTMl is undefined, it means there is no template HTML set for this kind of field
-		    if(inputHtml === undefined) {
-		        console.log("Error getting template input format #form_input_template_"+type.type);
-		    }
-		    
-		    //Replace the various elements of the html
-		    inputHtml = inputHtml.replace("field_id",element.dataID).replace("field_id",element.dataID).replace("fieldname",element.name).replace("fieldtype",type.type);
-		    
-		    
-		    //Append the HTML to the generator fields
-		    $("#form_gen_fields").append(inputHtml);
-		    
-		    //Add any classes to this field if needed
-		    $("#form_gen_fields :last div input").addClass(type.class);
-		    
-		    //If a default value is set, set it in the input feild
-		    if(element.default_value !== undefined) {
-		        $("#form_gen_fields").children(":last").children('div').children('.form_gen_input').val(element.default_value);
-		    }
-		        
-		},
-		//Deletes a contract item from the current contract
-		del_element: function (cel) {
-	        $(cel).parent().parent().remove();
-		},
-		//This function should be fired whenever a form data is changed, 
-		//Runs validation wizard and reports any errors
-		//Starts by getting the result of the data_validation to a variable
-		//If the validation is true, we change the color of the input field to green using the gne_form_input_msg function
-		// If validation is an array, it means it errored, we set the mssages using the same function
-		//Else if we did not get anything, nothing is right, all validation's should return something (ether, true, false or an array);
-		data_change: function (obj){
-		    //run the validation function
-		    var validation = data_validation(obj);
-		    
-		    //log an entry so we can see what is happening
-		    //If the result is false, something failed spectaculy,
-		    if (validation===false){
-		        alert("Error validating Data, please make sure there are no modifications to the code");
-		    }
-		    else if (validation===true){
-		        app.forms.input_msg(obj,'','success');
-		        return true;
-		    }
-		    //else if the result is an array
-		    else if(Object.prototype.toString.call(validation) === '[object Array]' ){
-		        app.forms.input_msg(obj,validation.join(),'error');
-		        return validation.join("<br>");
-		    }
-		    //else alert that something went wrong, 
-		    alert("something went wrong validating the data");
-		},
-		//Function modifies the display parameters of each form element
-		input_msg: function (element,msgTxt,status){
-		    //if Status is success, warning, error, or false
-		    
-		    //For ease of coding, get the parent object to a var
-		    var par = $(element).parent().parent();
-		    //first, remove any classes that may exist on this obj
-		    par.removeClass("has-error has-warning has-success");
-		    
-		    //If there is a helper, remove it
-		    $(par).children(".help-block").remove();
-		    
-		    //append a help block
-		    $(par).append('<span class="help-block">'+msgTxt+'</span>');
-		    
-		    //if the status is not false, set the new class
-		    if(status!==false) {
-		        $(par).addClass("has-"+status);
-		    }
-		    
-		    
-		}
-
-	};
 }());
 
 app.contract = (function() {
@@ -993,7 +837,7 @@ app.contract = (function() {
 
                 function validate_payload(payload) {
 
-                    var contract_types = app.forms2.get_contract_types();
+                    var contract_types = app.forms.get_contract_types();
                     var contract_type;
                     var isValid = contract_types.some(function(type) {
                         contract_type = type; // stash, in case we validate against it.
@@ -1026,7 +870,7 @@ app.contract = (function() {
             });
         },
         import: function() {
-            app.forms2.save_signed_contract_dialog($("#raw_contract").val());
+            app.forms.save_signed_contract_dialog($("#raw_contract").val());
         }
 	};
 }());
@@ -1039,7 +883,7 @@ app.store = (function() {
             drafts.push({name: name, type: type, payload: payload});
             localStorage.setItem("drafts", JSON.stringify(drafts));
             // update the list in the DOM
-    	    app.forms2.create_type_list(true);
+    	    app.forms.create_type_list(true);
         },
         delete_draft: function(name, type, payload) {
             var drafts = app.store.get_drafts();
@@ -1049,7 +893,7 @@ app.store = (function() {
                     drafts.splice(i,1);
                     localStorage.setItem("drafts", JSON.stringify(drafts));
                     // update the list in the DOM
-                    app.forms2.create_type_list(true);
+                    app.forms.create_type_list(true);
                     return;
                 }
             }
@@ -1066,7 +910,7 @@ app.store = (function() {
             contracts.push({name: name, contract: contract});
             localStorage.setItem("contracts", JSON.stringify(contracts));
             // update the list in the DOM
-    	    app.forms2.create_type_list(true);
+    	    app.forms.create_type_list(true);
         },
         delete_contract: function(name, contract) {
             var contracts = app.store.get_contracts();
@@ -1076,7 +920,7 @@ app.store = (function() {
                     contracts.splice(i,1);
                     localStorage.setItem("contracts", JSON.stringify(contracts));
                     // update the list in the DOM
-                    app.forms2.create_type_list(true);
+                    app.forms.create_type_list(true);
                     return;
                 }
             }

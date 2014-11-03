@@ -1,5 +1,11 @@
+/* Our first contract.
+ * This contract mimics the de-facto structure of the current OB contracts being generated.
+ * This also includes new fields for 3d parties, and CommonAccord payloads
+ *
+ */
 {
-    "title": "Main Contract",
+    "title": "Fixed Price, Physical Goods",
+    "description": "This contract definition is a work in progress.",
     "contract": true,
     "type": "object",
     "properties": {
@@ -25,5 +31,5 @@
             "$ref": "arbiter"
         }
     },
-    "required": [ "Contract_Metadata" ]
+    "required": [ "Contract_Metadata", "Contract" ]
 }

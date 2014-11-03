@@ -1,36 +1,98 @@
 {
     "title": "Contract",
+    "description": "This section describes the item, its price, condition, and delivery area",
     "type": "object",
     "properties": {
         "item_price": {
-            "type": "string"
+            "title": "price",
+            "description": "Price of item to sell, in the currency given",
+            "type": "string",
+            "format": "price",
+            "default": "1.0"
         },
         "item_title": {
-            "type": "string"
+            "title": "item title",
+            "description": "Title for the item",
+            "type": "string",
+            // made up size limits XXX
+            "minLength": 3,
+            "maxLength": 128
         },
         "currency": {
-            "type": "string"
+            "title": "currency",
+            "description": "Currency code used by the price",
+            "type": "string",
+            "default": "XBT",
         },
         "item_desc": {
+            "title": "description",
+            "description": "Detailed description of the item",
             "type": "string"
         },
         "item_images": {
+            "title": "image URL",
+            "description": "A ridiculously long data: URL encoding an image showcasing the item.",
             "type": "string"
         },
         "item_condition": {
+            "title": "item condition",
+            "description": "Describe the condition of the item. New/Used/Fair, etc.",
             "type": "string"
         },
         "item_quantity": {
+            "title": "quantity",
+            "description": "Quantity of items being sold",
             "type": "number"
         },
         "item_keywords": {
+            "title": "keywords",
+            "description": "list of keywords related to this contract",
             "type": "array"
         },
         "item_delivery": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string"
+                },
+                "est_delivery": {
+                    "type": "string"
+                },
+                "shipping_price": {
+                    "type": "string"
+                },
+                "countries": {
+                    "type": "string"
+                }
+            }
         },
         "item_commonaccord": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "item_pickuptime": {
+                    "type": "string",
+                    "format": "date"
+                },
+                "item_escrow_multisig": {
+                    "type": "string",
+                    "format": "bitcoin-address"
+                },
+                "item_escrow_multisig_type": {
+                    "type": "string", // XXX should be enum.
+                },
+                "item_escrow_redemption_script": {
+                    "type": "string",
+                    "format": "hex"
+                },
+                "item_escrow_date": {
+                    "type": "string",
+                    "format": "date"
+                },
+                "item_escrow_fee": {
+                    "type": "string"
+                }
+            }
         }
-    }
+    },
+    "required": [ "item_price", "currency", "item_title" ]
 }

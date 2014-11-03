@@ -101,7 +101,7 @@
             <div id="popup_modal_save_draft" class="modal fade">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form onsubmit="app.forms2.save_draft(this.contract_name.value);return false">
+                        <form onsubmit="app.forms.save_draft(this.contract_name.value);return false">
                         <div class="modal-header">
                             <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
                             <h4>Save Draft Contract</h4>
@@ -125,7 +125,7 @@
             <div id="popup_modal_save_contract" class="modal fade">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form onsubmit="app.forms2.save_signed_contract(this.contract_name.value);return false">
+                        <form onsubmit="app.forms.save_signed_contract(this.contract_name.value);return false">
                         <div class="modal-header">
                             <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
                             <h4>Save Signed Contract</h4>
@@ -196,6 +196,7 @@
                         <div id="contract_editor" class="col-sm-8">
                         </div>
                     </div>
+                    <p />
 
                 </div>
             </div>
@@ -322,12 +323,22 @@
 
     <!-- The following section is for all elements to be added into various forms by javascript -->
     <script type="text/template" id="form_input_template_text">
-       <div data-type="{datatype}" data-prop="{prop}" class="form-group">
-        <label for="{field_id}" class="col-sm-4 control-label">{fieldname}</label>
-        <div class="col-sm-5">
-          <input type="{fieldtype}" onchange="app.forms2.data_change($(this));" class="form-control form_gen_input" name="gen_input_field[]" id="{field_id}">
-        </div>
+        <div data-type="{datatype}" data-prop="{prop}" data-toggle='tooltip' class="form-group" title="{tooltip}">
+            <label for="{field_id}" class="col-sm-4 control-label">{fieldname}</label>
+            <div class="col-sm-5">
+                <input type="{fieldtype}" onchange="app.forms.data_change($(this));" class="form-control form_gen_input" name="gen_input_field[]" id="{field_id}">
+            </div>
       </div>
+    </script>
+
+    <script type="text/template" id="form_input_template_hidden">
+        <div data-type="{datatype}" data-prop="{prop}"data-toggle='tooltip' class="form-group" title="{tooltip}">
+            <label for="{field_id}" class="col-sm-4 control-label">{fieldname}</label>
+            <div class="col-sm-5">
+                <pre id="{field_id}_text"></pre>
+            </div>
+            <input type="hidden" id="{field_id}">
+        </div>
     </script>
 
     <!--
@@ -370,15 +381,15 @@
 
                 </form>
                 <div class="btn-group">
-                    <button type="button" onclick="app.forms2.validate_contract()" class="btn btn-default">Validate</button>
-                    <button type="button" onclick="app.forms2.save_draft_dialog()" class="btn btn-default">Save as draft</button>
-                    <button type="button" onclick="app.forms2.sign_contract()" class="btn btn-default">Sign</button>
+                    <button type="button" onclick="app.forms.validate_contract()" class="btn btn-default">Validate</button>
+                    <button type="button" onclick="app.forms.save_draft_dialog()" class="btn btn-default">Save as draft</button>
+                    <button type="button" onclick="app.forms.sign_contract()" class="btn btn-default">Sign</button>
                 </div>
             </div>
             <div role="tabpanel" class="tab-pane fade" id="contract" aria-labelledby="contract-tab">
                 <pre id="xml_contract">Sign a contract from the editor tab to see it here.</pre>
                 <div class="btn-group">
-                    <button type="button" onclick="app.forms2.save_signed_contract_dialog()" class="btn btn-default disabled" id="save_signed_btn">Save signed contract</button>
+                    <button type="button" onclick="app.forms.save_signed_contract_dialog()" class="btn btn-default disabled" id="save_signed_btn">Save signed contract</button>
                 </div>
             </div>
         </div>
@@ -394,7 +405,7 @@
 
     <script type="text/template" id="contract-loaded">
         <div class="alert alert-info fade in" role="alert">
-            <button type="button" onclick="app.forms2.delete_contract()" class="btn btn-danger pull-right">delete this contract</button>
+            <button type="button" onclick="app.forms.delete_contract()" class="btn btn-danger pull-right">delete this contract</button>
             <p class="align-w-btn">Loaded {contract_kind} {name} successfully.</p>
         </div>
     </script>
